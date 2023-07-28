@@ -1,0 +1,93 @@
+def get_data(user,passcode,jobdesgn,yrsexp,fresh = 'recent', url="https://www.naukri.com"):
+    driver = webdriver.Chrome()
+    driver.get(url)
+    driver.maximize_window()
+
+    wait = WebDriverWait(driver,10)
+    chain = ActionChains(driver)
+
+    # Click on Log-In
+    log_in_layer = (By.XPATH,"//a[@id='login_Layer']")
+    wait.until(EC.element_to_be_clickable(log_in_layer)).click()
+
+    # Input your Detail
+    username_deatails = (By.XPATH,"//input[@placeholder='Enter your active Email ID / Username']")
+    password_details = (By.XPATH, "//input[@placeholder='Enter your password']")
+    log_in_click = (By.XPATH,"//button[@type='submit']")
+
+    # Log in into account
+    wait.until(EC.visibility_of_element_located(username_deatails)).send_keys(user)
+    wait.until(EC.visibility_of_element_located(password_details)).send_keys(password)
+    wait.until(EC.element_to_be_clickable(log_in_click)).click()
+    
+    type_job_loc = (By.XPATH,"//span[@class='nI-gNb-sb__placeholder']")
+    wait.until(EC.element_to_be_clickable(type_job_loc)).click()
+
+    # Input Job title 
+    job_type_loc = (By.XPATH, "//input[@placeholder='Enter keyword / designation / companies']")
+    wait.until(EC.element_to_be_clickable(job_type_loc)).send_keys(jobdesgn)
+
+    
+    # Print Similar items
+    simi_jobs = (By.XPATH,"//div[contains(@class,'nI-gNb-search-bar')]//li//div")
+    wait.until(EC.visibility_of_all_elements_located(simi_jobs))
+    similar = driver.find_elements(By.XPATH,"//div[contains(@class,'nI-gNb-search-bar')]//li//div")
+    similar_list = [i.get_attribute('title') for i in similar]
+    
+    for i in similar_list:
+        print(f'Do checkout for "{i}"')
+    print()
+    
+    # Click on Search
+    search_loc =(By.XPATH, "//span[normalize-space()='Search']")
+    wait.until(EC.element_to_be_clickable(search_loc)).click()
+    
+    if fresh == 'recent':
+        driver.execute_script("window.scrollBy(0,1700)","")
+
+        freshness = (By.XPATH,"//input[@id='filter-freshnessFor']")
+        wait.until(EC.element_to_be_clickable(freshness)).click()
+        wait.until(EC.element_to_be_clickable(freshness)).click()
+
+        job_posted = (By.XPATH,"//div[@id='dp_filter-freshness'][1]//div/ul/li[5]")
+        wait.until(EC.visibility_of_element_located(job_posted))
+        chain.move_to_element(driver.find_element(By.XPATH,"//div[@id='dp_filter-freshness'][1]//div/ul/li[5]")).click().perform()
+    else:
+        pass
+    
+    wait.until(EC.element_to_be_clickable((By.XPATH,"//div[@class='inside']")))
+    dragger=driver.find_element(By.XPATH,"//div[@class='inside']")
+    chain.move_to_element(dragger).click_and_hold().pause(1).drag_and_drop_by_offset(dragger,(((yrsexp)*7)-210),0).perform()
+
+    wait.until(EC.visibility_of_element_located((By.XPATH, "/html[1]/body[1]/div[1]/div[4]/div[1]/div[1]/section[2]/div[1]/div[1]/span[1]")))
+    total_listing = driver.find_element(By.XPATH, "/html[1]/body[1]/div[1]/div[4]/div[1]/div[1]/section[2]/div[1]/div[1]/span[1]").text
+    pages = int(int(total_listing.split(" ")[-1])/(int(total_listing.split(' ')[2])))
+
+    print(f'Total Job postings are {total_listing.split(" ")[-1]}')
+    
+    job_link = []
+
+    i=0
+
+    while i<pages:
+        
+        jobs_wait = (By.XPATH,"//article")
+        wait.until(EC.visibility_of_all_elements_located(jobs_wait))
+        
+        jobs = driver.find_elements(By.XPATH,"//article")
+
+        for j in range(len(jobs)):
+            if jobdesgn.lower() in driver.find_element(By.XPATH, f'//article[{j+1}]/div[1]/div[1]/a[1]').text.lower():
+                job_link.append(driver.find_element(By.XPATH, f'//article[{j+1}]/div[1]/div[1]/a[1]').get_attribute('href'))
+
+        driver.execute_script("window.scrollBy(0,4800)","")
+        try:
+            wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@class='fright fs14 btn-secondary br2']"))).click()
+        except:
+            pass
+
+        i+=1
+
+    print(f'relevant jobs are {len(job_link)}')
+    df = pd.DataFrame({"URL": job_link,'Job_Search':jobdesgn})
+    return df
